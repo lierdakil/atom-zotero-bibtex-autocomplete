@@ -1,0 +1,22 @@
+# See https://atom.io/docs/latest/creating-a-package#menus for more details
+'context-menu':
+  'atom-text-editor': [
+    {
+      'label': 'Toggle zotero-bibtex-autocomplete'
+      'command': 'zotero-bibtex-autocomplete:toggle'
+    }
+  ]
+'menu': [
+  {
+    'label': 'Packages'
+    'submenu': [
+      'label': 'zotero-bibtex-autocomplete'
+      'submenu': [
+        {
+          'label': 'Toggle'
+          'command': 'zotero-bibtex-autocomplete:toggle'
+        }
+      ]
+    ]
+  }
+]
