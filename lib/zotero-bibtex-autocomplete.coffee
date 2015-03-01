@@ -14,9 +14,8 @@ module.exports = ZoteroBibtexAutocomplete =
                       options.position
         match =
           options.editor.getTextInRange(rng).match /\[\@([^\]]+)$/
-        options.prefix = match?[1]
-        console.log(options.prefix)
-        return [] if options.prefix?.length<2
+        prefix = match?[1]
+        return [] if prefix?.length<2
         url=null
         bibliography=null
         options.editor.scanInBufferRange /^bibliography-url:\s*(.*)$/m,
@@ -31,28 +30,25 @@ module.exports = ZoteroBibtexAutocomplete =
           http.get(url, (res) ->
             str = ''
 
-            #another chunk of data has been recieved, so append it to `str`
-            res.on('data', (chunk) ->
-              str += chunk;
-            );
+            res.on 'data', (chunk) ->
+              str += chunk
 
-            #the whole res has been recieved, so we just print it out here
-            res.on('end', ->
+            res.on 'end', ->
               fs.writeFileSync(bibliography,str) if bibliography?
               json=bib.toJSON(str)
               s=json.filter (c) ->
-                contains=c.citationKey.contains(options.prefix)
+                contains=c.citationKey.contains(prefix)
                 for a,v of c.entryTags
-                  contains=contains or v.contains(options.prefix)
+                  contains=contains or v.contains(prefix)
                 contains
               .map (c) ->
                 word: '[@'+c.citationKey+']'
-                prefix: '[@'+options.prefix
+                prefix: '[@'+prefix
                 label: c.entryTags.author+" "+c.entryTags.title
               resolve s
-            );
           ).on('error', (e) ->
-            console.log("Got error: " + e.message);
+            console.log("Got error: " + e.message)
+            resolve []
           ).end();
       dispose: ->
         # Your dispose logic here
