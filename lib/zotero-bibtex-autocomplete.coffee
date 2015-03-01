@@ -2,6 +2,7 @@
 http = require 'http'
 bib = require 'zotero-bibtex-parse'
 fs = require 'fs'
+{filter} = require 'fuzzaldrin'
 
 module.exports = ZoteroBibtexAutocomplete =
   subscriptions: null
@@ -15,13 +16,14 @@ module.exports = ZoteroBibtexAutocomplete =
         match =
           options.editor.getTextInRange(rng).match /\[\@([^\]]+)$/
         prefix = match?[1]
-        return [] if prefix?.length<2
+        return [] if not prefix? or prefix?.length<2
         url=null
         bibliography=null
         options.editor.scanInBufferRange /^bibliography-url:\s*(.*)$/m,
           options.editor.getBuffer().getRange(),
           ({match}) ->
             url=match[1]
+        url?="http://localhost:23119/better-bibtex/library?library.biblatex"
         options.editor.scanInBufferRange /^bibliography:\s*(.*\.biblatex)$/m,
           options.editor.getBuffer().getRange(),
           ({match}) ->
@@ -36,16 +38,18 @@ module.exports = ZoteroBibtexAutocomplete =
             res.on 'end', ->
               fs.writeFileSync(bibliography,str) if bibliography?
               json=bib.toJSON(str)
-              s=json.filter (c) ->
-                contains=c.citationKey.contains(prefix)
+              candidates = json.map (c) ->
+                c.searchKey=c.citationKey
                 for a,v of c.entryTags
-                  contains=contains or v.contains(prefix)
-                contains
-              .map (c) ->
+                  c.searchKey+=' '+v if v? and a in ['author','title','date']
+                c
+              s=filter candidates, prefix,
+                key:'searchKey'
+                maxResults:10
+              resolve s.map (c) ->
                 word: '[@'+c.citationKey+']'
                 prefix: '[@'+prefix
                 label: c.entryTags.author+" "+c.entryTags.title
-              resolve s
           ).on('error', (e) ->
             console.log("Got error: " + e.message)
             resolve []
