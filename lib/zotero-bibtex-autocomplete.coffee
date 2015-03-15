@@ -11,6 +11,10 @@ module.exports = ZoteroBibtexAutocomplete =
     provider =
       selector: '.source.gfm'
       requestHandler: (options) ->
+        filePath=options.editor.getBuffer().getPath()
+        cwd_  = atom.project.getDirectories()
+          .filter (d) ->
+            d.contains(filePath)
         rng=new Range options.editor.getBuffer().getFirstPosition(),
                       options.position
         match =
@@ -28,6 +32,7 @@ module.exports = ZoteroBibtexAutocomplete =
           options.editor.getBuffer().getRange(),
           ({match}) ->
             bibliography=match[1]
+            bibliography=cwd_[0].resolve(bibliography) if bibliography?
         new Promise (resolve) ->
           http.get(url, (res) ->
             str = ''
