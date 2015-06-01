@@ -9,7 +9,15 @@
     "atom": ">0.50.0"
   },
   "dependencies": {
-    "zotero-bibtex-parse": "*",
-    "fuzzaldrin": "latest"
+    "zotero-bibtex-parse": "^0.0.13",
+    "fuzzaldrin": "^2.1.0",
+    "atom-space-pen-views": "^2.0.5"
+  },
+  "providedServices": {
+    "autocomplete.provider": {
+      "versions": {
+        "2.0.0": "autocompleteProvider"
+      }
+    }
   }
 }
