@@ -1,7 +1,8 @@
 {Range,Point,CompositeDisposable} = require 'atom'
 http = require 'http'
-bib = require 'zotero-bibtex-parse'
 {filter} = require 'fuzzaldrin'
+CP = require 'child_process'
+fs = require 'fs'
 
 module.exports = ZoteroBibtexAutocomplete =
   activate: (state) ->
@@ -11,27 +12,31 @@ module.exports = ZoteroBibtexAutocomplete =
     getSuggestions: ({editor, bufferPosition}) =>
       filePath=editor.getBuffer().getPath()
       rng = editor.bufferRangeForBufferRow bufferPosition.row
-      rng=new Range rng.start, bufferPosition.column
+      rng=new Range rng.start, bufferPosition
 
+      txt = editor.getTextInRange(rng)
       match =
-        editor.getTextInRange(rng).match /[\[;]\s*\@([^\];]+)$/
+        txt.match /@([^@\];,]+)$/
       prefix = match?[1]
       return [] if not prefix? or prefix?.length<2
       url=null
-      editor.scanInBufferRange /^bibliography:\s*(.*)$/m,
+      editor.scanInBufferRange /^bibliography:\s*(https?:\/\/.*)$/m,
         editor.getBuffer().getRange(),
         ({match}) ->
           url=match[1]
-      url?="http://localhost:23119/better-bibtex/library?library.biblatex"
+      url = 'http://localhost:23119/better-bibtex/library?library.betterbiblatex'
       new Promise (resolve) =>
         http.get(url, (res) =>
           str = ''
 
           res.on 'data', (chunk) ->
-            str += chunk
+            str += chunk.toString()
 
           res.on 'end', =>
-            resolve @getBibSuggestions str,prefix
+            fs.writeFile '/tmp/biblio.bib', str, =>
+              CP.exec 'pandoc-citeproc -j /tmp/biblio.bib', {encoding: 'utf-8'}, (e, sto, ste) =>
+                console.warn ste
+                resolve @getBibSuggestions sto, prefix
         ).on('error', (e) ->
           console.log("Got error: " + e.message)
           resolve []
@@ -40,17 +45,17 @@ module.exports = ZoteroBibtexAutocomplete =
       # Your dispose logic here
 
   getBibSuggestions: (str, prefix) ->
-    json=bib.toJSON(str)
+    json=JSON.parse(str)
     candidates = json.map (c) ->
-      c.searchKey=c.citationKey
+      c.searchKey="#{c.id}: #{c.title}"
       for a,v of c.entryTags
         c.searchKey+=' '+v if v? and a in ['author','title','date']
       c
     s=filter candidates, prefix,
       key:'searchKey'
-    resolve s.map (c) ->
-      text: '@'+c.citationKey
+    return s.map (c) ->
+      text: '@'+c.id
       replacementPrefix: '@'+prefix
-      description: c.entryTags.author+" "+c.entryTags.title
+      description: c.title
 
   deactivate: ->
